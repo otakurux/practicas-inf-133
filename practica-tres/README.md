@@ -4,6 +4,6 @@ Completa tus datos personales en la siguiente tabla:
 -------------------------
 | Nombres  | Apellidos  | CI   |
 | -------- | ---------- | ---- |
-| `nombre` | `apellido` | `ci` |
+| `deivid enrique` | `Mamani Trujillo` | `7235715-1V` |
 
 *Ejercicios Próximamente...*

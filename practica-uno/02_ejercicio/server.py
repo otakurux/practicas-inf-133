@@ -2,23 +2,25 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 from graphene import ObjectType, String, Int, List, Schema, Field, Mutation
 
+# Definir el tipo de objeto para una planta
 class Planta(ObjectType):
     id = Int()
     nombre = String()
     especie = String()
     cantidad = Int()
 
-plantas = [
-    Planta(id=1, nombre="Rosa", especie="Rosa gallica", cantidad=10),
-    Planta(id=2, nombre="Lirio", especie="Lilium candidum", cantidad=15),
-    Planta(id=3, nombre="Geranio", especie="Pelargonium graveolens", cantidad=20)
-]
-
 class Query(ObjectType):
-    todas_las_plantas = List(Planta)
+    plantas = List(Planta)
+    planta_por_id = Field(Planta, id=Int())
 
-    def resolve_todas_las_plantas(root, info):
+    def resolve_plantas(root, info):
         return plantas
+
+    def resolve_planta_por_id(root, info, id):
+        for planta in plantas:
+            if planta.id == id:
+                return planta
+        return None
 
 class CrearPlanta(Mutation):
     class Arguments:
@@ -46,17 +48,37 @@ class ActualizarPlanta(Mutation):
     planta = Field(Planta)
 
     def mutate(root, info, id, cantidad):
-        for planta in plantas:
-            if planta.id == id:
-                planta.cantidad = cantidad
-                return ActualizarPlanta(planta=planta)
+        planta = buscar_planta_por_id(id)
+        if planta:
+            planta.cantidad = cantidad
+            return ActualizarPlanta(planta=planta)
         return None
 
-class Mutaciones(ObjectType):
-    crear_planta = CrearPlanta.Field()
-    actualizar_planta = ActualizarPlanta.Field()
+class DeletePlanta(Mutation):
+    class Arguments:
+        id = Int()
 
-schema = Schema(query=Query, mutation=Mutaciones)
+    planta = Field(Planta)
+
+    def mutate(root, info, id):
+        for i, planta in enumerate(plantas):
+            if planta.id == id:
+                plantas.pop(i)
+                return DeletePlanta(planta=planta)
+        return None
+
+class Mutations(ObjectType):
+    crear_planta = CrearPlanta.Field()
+    delete_planta = DeletePlanta.Field()
+
+plantas = [
+    Planta(id=1, nombre="Rosa", especie="Rosa gallica", cantidad=10),
+    Planta(id=2, nombre="Lirio", especie="Lilium candidum", cantidad=15),
+    Planta(id=3, nombre="Geranio", especie="Pelargonium graveolens", cantidad=20)
+
+]
+
+schema = Schema(query=Query, mutation=Mutation)
 
 class GraphQLRequestHandler(BaseHTTPRequestHandler):
     def response_handler(self, status, data):
@@ -70,6 +92,7 @@ class GraphQLRequestHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers["Content-Length"])
             data = self.rfile.read(content_length)
             data = json.loads(data.decode("utf-8"))
+            print(data)
             result = schema.execute(data["query"])
             self.response_handler(200, result.data)
         else:

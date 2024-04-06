@@ -1,20 +1,28 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
-from graphene import ObjectType, String, Int, List, Schema, Field, Mutation
-
+from graphene import ObjectType, String, Int, Boolean, List, Schema, Field, Mutation
 
 class Planta(ObjectType):
     id = Int()
-    nombre = String()
+    nombre_comun = String()
     especie = String()
-    cantidad = Int()
+    edad = Int()
+    altura = Int()
+    frutos = Boolean()
 
+plantas = [
+    Planta(id=1, nombre_comun="Rosa", especie="Rosa gallica", edad=12, altura=50, frutos=True),
+    Planta(id=2, nombre_comun="Lirio", especie="Lilium candidum", edad=18, altura=60, frutos=False),
+    Planta(id=3, nombre_comun="Geranio", especie="Pelargonium graveolens", edad=8, altura=40, frutos=True)
+]
 
 class Query(ObjectType):
-    plantas = List(Planta)
+    todas_las_plantas = List(Planta)
     planta_por_id = Field(Planta, id=Int())
+    plantas_por_especie = List(Planta, especie=String())
+    plantas_con_frutos = List(Planta)
 
-    def resolve_plantas(root, info):
+    def resolve_todas_las_plantas(root, info):
         return plantas
     
     def resolve_planta_por_id(root, info, id):
@@ -23,26 +31,57 @@ class Query(ObjectType):
                 return planta
         return None
 
+    def resolve_plantas_por_especie(root, info, especie):
+        return [planta for planta in plantas if planta.especie.lower() == especie.lower()]
+
+    def resolve_plantas_con_frutos(root, info):
+        return [planta for planta in plantas if planta.frutos]
+
 class CrearPlanta(Mutation):
     class Arguments:
-        nombre = String()
+        nombre_comun = String()
         especie = String()
-        cantidad = Int()
+        edad = Int()
+        altura = Int()
+        frutos = Boolean()
 
     planta = Field(Planta)
 
-    def mutate(root, info, nombre, especie, cantidad):
-        nuevo_planta = Planta(
+    def mutate(root, info, nombre_comun, especie, edad, altura, frutos):
+        nueva_planta = Planta(
             id=len(plantas) + 1, 
-            nombre=nombre, 
+            nombre_comun=nombre_comun, 
             especie=especie, 
-            cantidad=cantidad
+            edad=edad,
+            altura=altura,
+            frutos=frutos
         )
-        plantas.append(nuevo_planta)
+        plantas.append(nueva_planta)
+        return CrearPlanta(planta=nueva_planta)
 
-        return Crearplanta(planta=nuevo_planta)
+class ActualizarPlanta(Mutation):
+    class Arguments:
+        id = Int()
+        nombre_comun = String()
+        especie = String()
+        edad = Int()
+        altura = Int()
+        frutos = Boolean()
 
-class DeletePlanta(Mutation):
+    planta = Field(Planta)
+
+    def mutate(root, info, id, nombre_comun, especie, edad, altura, frutos):
+        for planta in plantas:
+            if planta.id == id:
+                planta.nombre_comun = nombre_comun
+                planta.especie = especie
+                planta.edad = edad
+                planta.altura = altura
+                planta.frutos = frutos
+                return ActualizarPlanta(planta=planta)
+        return None
+
+class EliminarPlanta(Mutation):
     class Arguments:
         id = Int()
 
@@ -52,17 +91,13 @@ class DeletePlanta(Mutation):
         for i, planta in enumerate(plantas):
             if planta.id == id:
                 plantas.pop(i)
-                return DeletePlanta(planta=planta)
+                return EliminarPlanta(planta=planta)
         return None
 
 class Mutations(ObjectType):
     crear_planta = CrearPlanta.Field()
-    delete_planta = DeletePlanta.Field()
-
-plantas = [
-    Planta(id=1, nombre="Pedrito", especie="García", cantidad=4),
-    Planta(id=2, nombre="Jose", especie="Lopez", cantidad=5),
-]
+    actualizar_planta = ActualizarPlanta.Field()
+    eliminar_planta = EliminarPlanta.Field()
 
 schema = Schema(query=Query, mutation=Mutations)
 
@@ -78,12 +113,10 @@ class GraphQLRequestHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers["Content-Length"])
             data = self.rfile.read(content_length)
             data = json.loads(data.decode("utf-8"))
-            print(data)
             result = schema.execute(data["query"])
             self.response_handler(200, result.data)
         else:
             self.response_handler(404, {"Error": "Ruta no existente"})
-
 
 def run_server(port=8000):
     try:

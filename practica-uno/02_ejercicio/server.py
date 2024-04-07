@@ -2,6 +2,14 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 from graphene import ObjectType, String, Int, Boolean, List, Schema, Field, Mutation
 
+contador_id = 4
+
+def generar_id_unico():
+    global contador_id
+    id_unico = contador_id
+    contador_id += 1
+    return id_unico
+
 class Planta(ObjectType):
     id = Int()
     nombre_comun = String()
@@ -49,7 +57,7 @@ class CrearPlanta(Mutation):
 
     def mutate(root, info, nombre_comun, especie, edad, altura, frutos):
         nueva_planta = Planta(
-            id=len(plantas) + 1, 
+            id=generar_id_unico(), 
             nombre_comun=nombre_comun, 
             especie=especie, 
             edad=edad,
